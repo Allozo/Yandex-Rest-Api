@@ -72,28 +72,12 @@ class Orders(Base):
                             nullable=True)
     complete_time = db.Column(db.DateTime,
                               nullable=True)
-
-    regions = relationship("OrderRegions",
-                           cascade="all, delete, delete-orphan",
-                           backref='order')
+    region = db.Column(db.Integer,
+                       nullable=False)
 
     delivery_hours = relationship("OrderDeliveryTime",
                                   cascade="all, delete, delete-orphan",
                                   backref='order')
-
-
-class OrderRegions(Base):
-    __tablename__ = 'OrderRegions'
-
-    _id = db.Column(db.Integer,
-                    primary_key=True)
-    order_id = db.Column(db.Integer,
-                         db.ForeignKey('Orders.order_id'),
-                         nullable=False)
-    region = db.Column(db.Integer, nullable=False)
-
-    def __repr__(self):
-        return f"{self.region}"
 
 
 class OrderDeliveryTime(Base):

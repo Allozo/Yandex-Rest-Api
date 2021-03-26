@@ -68,7 +68,7 @@ def del_couriers():
     return '', 200
 
 
-def get_bad_id(json_all_couriers):
+def get_bad_id_for_couriers(json_all_couriers):
     #  Тут будет список тех id, в которых есть неописанные или
     #  отсутствующие поля
     list_bad_id = []
@@ -96,7 +96,7 @@ def get_time_from_str(str_pair_date):
 def import_couriers():
     json_all_couriers = request.json
 
-    list_bad_id = get_bad_id(json_all_couriers)
+    list_bad_id = get_bad_id_for_couriers(json_all_couriers)
 
     # Если нашли отсутствующие значения, то вернём ошибку
     # и соответствующий json
@@ -123,7 +123,7 @@ def import_couriers():
                                rating=0,
                                earnings=0)
 
-        # Добавим регионы для курьеры
+        # Добавим регионы для курьера
         new_courier.regions = []
         for region in regions:
             new_region = CouriersRegions(courier_id=courier_id,
@@ -206,8 +206,6 @@ def update_courier(courier_id):
 # Все поля заказа переводятся в json
 def date_order_in_json(order):
     # переведем элементы списка в строки
-    regions = list(order.regions)
-    regions = [int(str(x)) for x in regions]
 
     delivery_hours = list(order.delivery_hours)
     delivery_hours = [str(x) for x in delivery_hours]
@@ -215,7 +213,7 @@ def date_order_in_json(order):
     date_json = {
         "order_id": order.order_id,
         "weight": order.weight,
-        "regions": regions,
+        "region": order.region,
         "delivery_hours": delivery_hours
     }
 
@@ -248,9 +246,64 @@ def del_orders():
     return '', 200
 
 
+def get_bad_id_for_orders(json_all_orders):
+    list_bad_id = []
+
+    for json_order in json_all_orders['data']:
+        if None in [json_order['weight'],
+                    json_order['region'],
+                    json_order['delivery_hours']
+                    ]:
+            list_bad_id.append({'id': json_order['order_id']})
+
+    return list_bad_id
+
+
 @app.route('/orders', methods=['POST'])
 def import_orders():
-    pass
+    json_all_orders = request.json
+
+    list_bad_id = get_bad_id_for_orders(json_all_orders)
+
+    if len(list_bad_id) > 0:
+        return {
+                   "validation_error": {
+                       "orders": list_bad_id
+                   }
+               }, 400
+
+    list_good_id = []
+
+    for json_order in json_all_orders['data']:
+        order_id = json_order['order_id']
+        weight = json_order['weight']
+        region = json_order['region']
+        delivery_hours = json_order['delivery_hours']
+
+        new_order = Orders(order_id=order_id,
+                           weight=weight,
+                           region=region)
+
+        # Добавим время доставки для курьера
+        new_order.delivery_hours = []
+        for i in delivery_hours:
+            pair_time = get_time_from_str(i)
+
+            new_order.delivery_hours.append(
+                OrderDeliveryTime(order_id=order_id,
+                                  delivery_hours_start=pair_time[0],
+                                  delivery_hours_end=pair_time[1]))
+
+        list_good_id.append({'id': order_id})
+
+        session.add(new_order)
+
+    # Коммитим изменения
+    session.commit()
+
+    return {
+               "orders": list_good_id
+           }, 201
 
 
 @app.teardown_appcontext
