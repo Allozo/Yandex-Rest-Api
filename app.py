@@ -11,7 +11,8 @@ client = app.test_client()
 engine = create_engine('sqlite:///db.sqlite')
 
 session = scoped_session(sessionmaker(autocommit=False,
-                                      autoflush=False, bind=engine))
+                                      autoflush=False,
+                                      bind=engine))
 
 Base = declarative_base()
 Base.query = session.query_property()
@@ -53,7 +54,8 @@ def get_couriers():
     return jsonify(serialised)
 
 
-# Тестовый метод для удаления всех курьеров (и их регионов и рабочих часов)
+# Тестовый метод для удаления всех курьеров
+#  (и их регионов и рабочих часов)
 @app.route('/couriers', methods=['DELETE'])
 def del_couriers():
     couriers = Couriers.query.all()
@@ -117,7 +119,9 @@ def import_couriers():
 
         # Создадим нового курьера
         new_courier = Couriers(courier_id=courier_id,
-                               courier_type=courier_type)
+                               courier_type=courier_type,
+                               rating=0,
+                               earnings=0)
 
         # Добавим регионы для курьеры
         new_courier.regions = []
@@ -148,7 +152,7 @@ def import_couriers():
            }, 201
 
 
-@app.route('/couriers/<int:courier_id>', methods=['PUT'])
+@app.route('/couriers/<int:courier_id>', methods=['PATCH'])
 def update_courier(courier_id):
     now_courier = Couriers.query.filter(
         Couriers.courier_id == courier_id).first()
@@ -169,7 +173,7 @@ def update_courier(courier_id):
 
             for new_region in value:
                 new_instance_region = CouriersRegions(courier_id=courier_id,
-                                             region=new_region)
+                                                      region=new_region)
                 now_courier.regions.append(new_instance_region)
 
         if key == 'courier_type':
@@ -183,8 +187,10 @@ def update_courier(courier_id):
                 pair_time = get_time_from_str(new_time)
 
                 new_instance_time = CouriersWorkingTime(courier_id=courier_id,
-                                                        working_hours_start=pair_time[0],
-                                                        working_hours_end=pair_time[1])
+                                                        working_hours_start=
+                                                        pair_time[0],
+                                                        working_hours_end=
+                                                        pair_time[1])
 
                 now_courier.working_hours.append(new_instance_time)
 
@@ -197,20 +203,20 @@ def update_courier(courier_id):
     return jsonify(date_courier_json), 200
 
 
-# Все поля курьера переводятся в json
+# Все поля заказа переводятся в json
 def date_order_in_json(order):
     # переведем элементы списка в строки
     regions = list(order.regions)
     regions = [int(str(x)) for x in regions]
 
-    working_hours = list(order.working_hours)
-    working_hours = [str(x) for x in working_hours]
+    delivery_hours = list(order.delivery_hours)
+    delivery_hours = [str(x) for x in delivery_hours]
 
     date_json = {
-        "courier_id": order.courier_id,
-        "courier_type": order.courier_type,
+        "order_id": order.order_id,
+        "weight": order.weight,
         "regions": regions,
-        "working_hours": working_hours
+        "delivery_hours": delivery_hours
     }
 
     return date_json
@@ -223,7 +229,7 @@ def get_orders():
 
     serialised = []
     for order in all_orders:
-        date_json_order = date_courier_in_json(order)
+        date_json_order = date_order_in_json(order)
         serialised.append(date_json_order)
 
     return jsonify(serialised)

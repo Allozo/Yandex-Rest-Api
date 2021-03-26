@@ -88,12 +88,12 @@ def print_couriers():
         print(i)
 
 
-def successful_put_courier_regions():
+def successful_patch_courier_regions():
     # пример из ТЗ
-    res = client.put('/couriers/2',
-                     json={
-                         "regions": [11, 33, 2]
-                     })
+    res = client.patch('/couriers/2',
+                       json={
+                           "regions": [11, 33, 2]
+                       })
     status_code = res.status_code
     answer_json = res.get_json()
 
@@ -109,13 +109,13 @@ def successful_put_courier_regions():
     assert answer_json == right_answer_json, answer_json
 
 
-def successful_put_courier_type():
+def successful_patch_courier_type():
     # Пример не из ТЗ
 
-    res = client.put('/couriers/2',
-                     json={
-                         "courier_type": "foot"
-                     })
+    res = client.patch('/couriers/2',
+                       json={
+                           "courier_type": "foot"
+                       })
     status_code = res.status_code
     answer_json = res.get_json()
 
@@ -131,13 +131,14 @@ def successful_put_courier_type():
     assert answer_json == right_answer_json, answer_json
 
 
-def successful_put_courier_working_hours():
+def successful_patch_courier_working_hours():
     # Пример не из ТЗ
 
-    res = client.put('/couriers/2',
-                     json={
-                         "working_hours": ["09:00-09:15", "09:30-09:45"]
-                     })
+    res = client.patch('/couriers/2',
+                       json={
+                           "working_hours": ["09:00-09:15",
+                                             "09:30-09:45"]
+                       })
     status_code = res.status_code
     answer_json = res.get_json()
 
@@ -153,16 +154,15 @@ def successful_put_courier_working_hours():
     assert answer_json == right_answer_json, answer_json
 
 
-def error_put_courier():
-    res = client.put('/couriers/12',
-                     json={
-                         "working_hours": ["09:00-09:15", "09:30-09:45"]
-                     })
+def error_patch_courier():
+    res = client.patch('/couriers/12',
+                       json={
+                           "working_hours": ["09:00-09:15",
+                                             "09:30-09:45"]
+                       })
     status_code = res.status_code
-    answer_json = res.get_json()
 
     right_status_code = 404
-    right_answer_json = ''
 
     assert status_code == right_status_code, status_code
 
@@ -173,7 +173,8 @@ def del_couriers():
     answer_status_code = res.status_code
     right_answer_code = 200
 
-    assert answer_status_code == right_answer_code, answer_status_code
+    assert answer_status_code == right_answer_code, \
+        answer_status_code
 
 
 def test_pack():
@@ -185,11 +186,11 @@ def test_pack():
 
     print_couriers()
 
-    successful_put_courier_regions()
-    successful_put_courier_type()
-    successful_put_courier_working_hours()
+    successful_patch_courier_regions()
+    successful_patch_courier_type()
+    successful_patch_courier_working_hours()
 
-    error_put_courier()
+    error_patch_courier()
 
     print_couriers()
 
@@ -202,10 +203,10 @@ def testing_db():
     del_couriers()
     successful_post_couriers()
     error_post_couriers()
-    successful_put_courier_regions()
-    successful_put_courier_type()
-    successful_put_courier_working_hours()
-    error_put_courier()
+    successful_patch_courier_regions()
+    successful_patch_courier_type()
+    successful_patch_courier_working_hours()
+    error_patch_courier()
     del_couriers()
     print_couriers()
 
