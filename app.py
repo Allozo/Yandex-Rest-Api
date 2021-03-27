@@ -306,6 +306,24 @@ def import_orders():
            }, 201
 
 
+@app.route('/orders/assign', methods=['POST'])
+def assigning_order():
+    params = request.json
+
+    # key = "courier_id"
+    # value - сам id
+    courier_id = params['courier_id']
+    print(courier_id)
+
+    couriers_region = Couriers.query.filter_by(courier_id=courier_id).first().regions
+
+    # suitable_orders = Orders.query.filter_by().first()
+
+    print(couriers_region)
+
+    return '', 200
+
+
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     session.remove()

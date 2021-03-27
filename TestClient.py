@@ -22,7 +22,7 @@ def successful_post_couriers():
                                   "courier_id": 3,
                                   "courier_type": "car",
                                   "regions": [12, 22, 23, 33],
-                                  "working_hours": []
+                                  "working_hours": ["09:00-15:00"]
                               },
 
                           ]
@@ -136,8 +136,8 @@ def successful_patch_courier_working_hours():
 
     res = client.patch('/couriers/2',
                        json={
-                           "working_hours": ["09:00-09:15",
-                                             "09:30-09:45"]
+                           "working_hours": ["09:00-10:15",
+                                             "19:30-23:45"]
                        })
     status_code = res.status_code
     answer_json = res.get_json()
@@ -147,7 +147,7 @@ def successful_patch_courier_working_hours():
         "courier_id": 2,
         "courier_type": "foot",
         "regions": [11, 33, 2],
-        "working_hours": ["09:00-09:15", "09:30-09:45"]
+        "working_hours": ["09:00-10:15", "19:30-23:45"]
     }
 
     assert status_code == right_status_code, status_code
@@ -173,8 +173,7 @@ def del_couriers():
     answer_status_code = res.status_code
     right_answer_code = 200
 
-    assert answer_status_code == right_answer_code, \
-        answer_status_code
+    assert answer_status_code == right_answer_code,  answer_status_code
 
 
 def del_orders():
@@ -212,10 +211,22 @@ def successful_post_orders():
                               },
                               {
                                   "order_id": 3,
-                                  "weight": 0.01,
+                                  "weight": 0.1,
                                   "region": 22,
-                                  "delivery_hours": ["09:00-12:00",
+                                  "delivery_hours": ["11:00-12:00",
                                                      "16:00-21:30"]
+                              },
+                              {
+                                  "order_id": 4,
+                                  "weight": 23,
+                                  "region": 22,
+                                  "delivery_hours": ["09:00-20:00"]
+                              },
+                              {
+                                  "order_id": 5,
+                                  "weight": 23,
+                                  "region": 19,
+                                  "delivery_hours": ["09:00-20:00"]
                               }
                           ]
                       }
@@ -227,7 +238,9 @@ def successful_post_orders():
     right_status_code = 201
     right_answer_json = {'orders': [{'id': 1},
                                     {'id': 2},
-                                    {'id': 3}
+                                    {'id': 3},
+                                    {'id': 4},
+                                    {'id': 5}
                                     ]
                          }
 
@@ -259,7 +272,6 @@ def error_post_orders():
                               }
                           ]
                       }
-
                       )
     status_code = res.status_code
     answer_json = res.get_json()
@@ -274,33 +286,61 @@ def error_post_orders():
     assert answer_json == expected_error_json, answer_json
 
 
+def successful_assigning_order():
+    res = client.post('/orders/assign',
+                      json={
+                          "courier_id": 1
+                      }
+                      )
+
+    status_code = res.status_code
+    answer_json = res.get_json()
+
+    right_status_code = 200
+    right_answer_json = {
+        "orders": [{"id": 1}, {"id": 2}, {"id": 3}],
+        "assign_time": "2021-01-10T09:32:14.42Z"
+    }
+
+    # assert status_code == right_status_code, status_code
+    print(answer_json)
+
+
 def test_pack():
     del_orders()
-    print('-----------------------')
-    successful_post_orders()
-    error_post_orders()
-    print_orders()
-    print('-----------------------')
+    del_couriers()
 
-    print('-----------------------')
+    successful_post_couriers()
+    successful_post_orders()
+
+    successful_assigning_order()
+
     del_orders()
-    print_orders()
+    del_couriers()
 
 
 def testing_db():
     del_couriers()
+    del_orders()
+
     successful_post_couriers()
     error_post_couriers()
+
     successful_patch_courier_regions()
     successful_patch_courier_type()
     successful_patch_courier_working_hours()
     error_patch_courier()
-    del_couriers()
-    print_couriers()
 
     successful_post_orders()
     error_post_orders()
+
+    # print_couriers()
+    # print_orders()
+
+    del_couriers()
     del_orders()
+
+    print_couriers()
     print_orders()
 
 

@@ -22,6 +22,9 @@ class Couriers(Base):
     working_hours = relationship("CouriersWorkingTime",
                                  cascade="all, delete, delete-orphan",
                                  backref='courier')
+    orders = relationship("Orders",
+                          cascade="all, delete, delete-orphan",
+                          backref='courier')
 
     def __repr__(self):
         return f"{self.courier_id}, {self.courier_type}"
@@ -74,6 +77,9 @@ class Orders(Base):
                               nullable=True)
     region = db.Column(db.Integer,
                        nullable=False)
+    courier_id = db.Column(db.Integer,
+                           db.ForeignKey('Couriers.courier_id'),
+                           nullable=True)
 
     delivery_hours = relationship("OrderDeliveryTime",
                                   cascade="all, delete, delete-orphan",
