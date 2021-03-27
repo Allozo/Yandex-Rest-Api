@@ -324,7 +324,7 @@ def time_intersects(courier, order):
             if start_1 < end_2 and start_2 < end_1:
                 str_now_time = datetime.datetime.now().strftime('%H:%M')
                 now_time = datetime.datetime.strptime(str_now_time, "%H:%M")
-                now_time = datetime.datetime.strptime("14:01", "%H:%M")
+                # now_time = datetime.datetime.strptime("14:01", "%H:%M")
                 if start_1 < now_time < end_1 and start_2 < now_time < end_2:
                     return True
     return False
