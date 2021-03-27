@@ -71,9 +71,9 @@ class Orders(Base):
                          primary_key=True)
     weight = db.Column(db.Float,
                        nullable=False)
-    time_accept = db.Column(db.DateTime,
+    assign_time = db.Column(db.String(70),
                             nullable=True)
-    complete_time = db.Column(db.DateTime,
+    complete_time = db.Column(db.String(70),
                               nullable=True)
     region = db.Column(db.Integer,
                        nullable=False)

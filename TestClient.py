@@ -1,4 +1,8 @@
-from app import client
+from app import app
+import json
+
+
+client = app.test_client()
 
 
 def successful_post_couriers():
@@ -22,7 +26,7 @@ def successful_post_couriers():
                                   "courier_id": 3,
                                   "courier_type": "car",
                                   "regions": [12, 22, 23, 33],
-                                  "working_hours": ["09:00-16:00"]
+                                  "working_hours": ["09:00-15:00"]
                               },
 
                           ]
@@ -42,6 +46,7 @@ def successful_post_couriers():
     assert answer_json == right_answer_json, answer_json
 
 
+# Отправляем в полях None
 def error_post_couriers():
     res = client.post('/couriers',
                       json={
@@ -84,8 +89,9 @@ def error_post_couriers():
 def print_couriers():
     res = client.get('/couriers')
     json_couriers = res.get_json()
-    for i in json_couriers:
-        print(i)
+    print(json.dumps(json_couriers, sort_keys=True, indent=4))
+    # for i in json_couriers:
+    #     print(i)
 
 
 def successful_patch_courier_regions():
@@ -137,7 +143,7 @@ def successful_patch_courier_working_hours():
     res = client.patch('/couriers/2',
                        json={
                            "working_hours": ["09:00-10:15",
-                                             "19:30-23:45"]
+                                             "14:30-23:45"]
                        })
     status_code = res.status_code
     answer_json = res.get_json()
@@ -147,13 +153,14 @@ def successful_patch_courier_working_hours():
         "courier_id": 2,
         "courier_type": "foot",
         "regions": [11, 33, 2],
-        "working_hours": ["09:00-10:15", "19:30-23:45"]
+        "working_hours": ["09:00-10:15", "14:30-23:45"]
     }
 
     assert status_code == right_status_code, status_code
     assert answer_json == right_answer_json, answer_json
 
 
+# Отправляем id, которого нет
 def error_patch_courier():
     res = client.patch('/couriers/12',
                        json={
@@ -173,7 +180,7 @@ def del_couriers():
     answer_status_code = res.status_code
     right_answer_code = 200
 
-    assert answer_status_code == right_answer_code,  answer_status_code
+    assert answer_status_code == right_answer_code, answer_status_code
 
 
 def del_orders():
@@ -189,8 +196,9 @@ def del_orders():
 def print_orders():
     res = client.get('/orders')
     json_orders = res.get_json()
-    for i in json_orders:
-        print(i)
+    print(json.dumps(json_orders, sort_keys=True, indent=4))
+    # for i in json_orders:
+    #     print(i)
 
 
 def successful_post_orders():
@@ -214,13 +222,13 @@ def successful_post_orders():
                                   "weight": 0.1,
                                   "region": 22,
                                   "delivery_hours": ["11:00-12:00",
-                                                     "16:00-21:30"]
+                                                     "14:00-21:30"]
                               },
                               {
                                   "order_id": 4,
                                   "weight": 20,
                                   "region": 22,
-                                  "delivery_hours": ["16:00-20:00"]
+                                  "delivery_hours": ["14:00-20:00"]
                               },
                               {
                                   "order_id": 5,
@@ -248,6 +256,7 @@ def successful_post_orders():
     assert answer_json == right_answer_json, answer_json
 
 
+# Отправляем поля с None
 def error_post_orders():
     res = client.post('/orders',
                       json={
@@ -297,8 +306,11 @@ def successful_assigning_order_courier_1():
     answer_json = res.get_json()
 
     right_status_code = 200
+    '''
+        Если падает тут
+    '''
     right_answer_json = {
-        "orders": [{"id": 1}, {"id": 3}],
+        "orders": [{"id": 3}, {"id": 1}],
         "assign_time": "2021-01-10T09:32:14.42Z"
     }
 
@@ -337,7 +349,139 @@ def successful_assigning_order_courier_3():
 
     right_status_code = 200
     right_answer_json = {
-        "orders": [{'id': 4}, {'id': 5}],
+        "orders": [{'id': 4}, {'id': 5}]
+    }
+
+    assert status_code == right_status_code, status_code
+    assert answer_json['orders'] == right_answer_json['orders'], answer_json
+
+
+def successful_assigning_order_courier_1_after_complete():
+    res = client.post('/orders/assign',
+                      json={
+                          "courier_id": 1
+                      }
+                      )
+
+    status_code = res.status_code
+    answer_json = res.get_json()
+
+    right_status_code = 200
+    right_answer_json = {
+        "orders": [{"id": 3}],
+        "assign_time": "2021-01-10T09:32:14.42Z"
+    }
+
+    assert status_code == right_status_code, status_code
+    assert answer_json['orders'] == right_answer_json['orders'], answer_json
+
+
+# Отправляем несуществующий id
+def error_assigning_order():
+    res = client.post('/orders/assign',
+                      json={
+                          "courier_id": 30
+                      }
+                      )
+
+    status_code = res.status_code
+
+    right_status_code = 400
+
+    assert status_code == right_status_code, status_code
+
+
+def successful_complete_order_1():
+    res = client.post('/orders/complete',
+                      json={
+                          "courier_id": 1,
+                          "order_id": 1,
+                          "complete_time": "2021-01-10T10:33:01.42Z"
+                      })
+
+    status_code = res.status_code
+    answer_json = res.get_json()
+
+    right_status_code = 200
+    right_answer_json = {
+        "order_id": 1
+    }
+
+    assert status_code == right_status_code, status_code
+    assert answer_json == right_answer_json, answer_json
+
+
+def successful_complete_order_4():
+    res = client.post('/orders/complete',
+                      json={
+                          "courier_id": 3,
+                          "order_id": 4,
+                          "complete_time": "2021-01-20T20:33:01.42Z"
+                      })
+
+    status_code = res.status_code
+    answer_json = res.get_json()
+
+    right_status_code = 200
+    right_answer_json = {
+        "order_id": 4
+    }
+
+    assert status_code == right_status_code, status_code
+    assert answer_json == right_answer_json, answer_json
+
+
+def successful_complete_order_3():
+    res = client.post('/orders/complete',
+                      json={
+                          "courier_id": 1,
+                          "order_id": 3,
+                          "complete_time": "2018-01-20T20:33:01.42Z"
+                      })
+
+    status_code = res.status_code
+    answer_json = res.get_json()
+
+    right_status_code = 200
+    right_answer_json = {
+        "order_id": 3
+    }
+
+    assert status_code == right_status_code, status_code
+    assert answer_json == right_answer_json, answer_json
+
+
+# Для заказа неправильно указан курьер
+def error_complete_order():
+    res = client.post('/orders/complete',
+                      json={
+                          "courier_id": 12,
+                          "order_id": 4,
+                          "complete_time": "2021-01-20T20:33:01.42Z"
+                      })
+
+    status_code = res.status_code
+    answer_json = res.get_json()
+
+    right_status_code = 400
+
+    assert status_code == right_status_code, status_code
+
+
+def successful_assigning_order_1_finally():
+    res = client.post('/orders/assign',
+                      json={
+                          "courier_id": 1
+                      }
+                      )
+
+    status_code = res.status_code
+    answer_json = res.get_json()
+
+    right_status_code = 200
+    right_answer_json = {
+        "orders": [],
+        "assign_time": "2021-01-10T09:32:14.42Z"
     }
 
     assert status_code == right_status_code, status_code
@@ -352,23 +496,26 @@ def test_pack():
     successful_post_orders()
 
     successful_assigning_order_courier_1()
-
-    # print_orders()
-    # print_couriers()
-
-    print()
-
     successful_assigning_order_courier_2()
-
-    # print_orders()
-    # print_couriers()
-
-    print()
-
     successful_assigning_order_courier_3()
 
-    print_orders()
-    print_couriers()
+    # print("Orders:")
+    # print_orders()
+    # print("\nCouriers:")
+    # print_couriers()
+
+    successful_complete_order_1()
+    error_complete_order()
+    successful_complete_order_4()
+
+    successful_assigning_order_courier_1_after_complete()
+    successful_complete_order_3()
+    successful_assigning_order_1_finally()
+
+    # print("Orders:")
+    # print_orders()
+    # print("\nCouriers:")
+    # print_couriers()
 
     del_orders()
     del_couriers()
@@ -392,17 +539,20 @@ def testing_db():
     successful_assigning_order_courier_1()
     successful_assigning_order_courier_2()
     successful_assigning_order_courier_3()
+    error_assigning_order()
 
-    # print_couriers()
-    # print_orders()
+    successful_complete_order_1()
+    error_complete_order()
+    successful_complete_order_4()
+
+    successful_assigning_order_courier_1_after_complete()
+    successful_complete_order_3()
+    successful_assigning_order_1_finally()
 
     del_couriers()
     del_orders()
 
-    print_couriers()
-    print_orders()
-
 
 if __name__ == '__main__':
-    # test_pack()
+    test_pack()
     testing_db()
