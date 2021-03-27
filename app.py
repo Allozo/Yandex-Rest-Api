@@ -155,11 +155,12 @@ def import_couriers():
 
 @app.route('/couriers/<int:courier_id>', methods=['PATCH'])
 def update_courier(courier_id):
-    now_courier = Couriers.query.filter(
-        Couriers.courier_id == courier_id).first()
+    courier = Couriers.query.filter(
+        Couriers.courier_id == courier_id
+    ).first()
 
     params = request.json
-    if not now_courier:
+    if not courier:
         return '', 404
 
     # key in ['regions', 'courier_type', 'working_hours']
@@ -170,19 +171,19 @@ def update_courier(courier_id):
 
         if key == 'regions':
             # обнулим существующие регионы
-            now_courier.regions = []
+            courier.regions = []
 
             for new_region in value:
                 new_instance_region = CouriersRegions(courier_id=courier_id,
                                                       region=new_region)
-                now_courier.regions.append(new_instance_region)
+                courier.regions.append(new_instance_region)
 
         if key == 'courier_type':
-            now_courier.courier_type = value
+            courier.courier_type = value
 
         if key == 'working_hours':
             # Обнулим существующие значения
-            now_courier.working_hours = []
+            courier.working_hours = []
 
             for new_time in value:
                 pair_time = get_time_from_str(new_time)
@@ -193,13 +194,31 @@ def update_courier(courier_id):
                                                         working_hours_end=
                                                         pair_time[1])
 
-                now_courier.working_hours.append(new_instance_time)
+                courier.working_hours.append(new_instance_time)
 
-    # for i in all_regions:
-    #     session.delete(i)
+    # Делаем проверку на то, нужно ли убрать какие-то заказы у курьера
+    if len(courier.orders) > 0:
+        orders = courier.orders
+        courier_regions = courier.regions
+        courier_regions = [int(str(x)) for x in courier.regions]
+
+        new_orders_list = []
+
+        for order in orders:
+            if order.complete_time:
+                continue
+
+            if time_intersects(courier, order) and (order.region in courier_regions):
+                new_orders_list.append(order)
+            else:
+                order.assign_time = None
+                order.courier = None
+
+        courier.orders = new_orders_list
+
     session.commit()
 
-    date_courier_json = date_courier_in_json(now_courier)
+    date_courier_json = date_courier_in_json(courier)
 
     return jsonify(date_courier_json), 200
 
@@ -218,7 +237,8 @@ def date_order_in_json(order):
         "delivery_hours": delivery_hours,
         "courier_id": order.courier_id,
         "assign_time": order.assign_time,
-        "complete_time": order.complete_time
+        "complete_time": order.complete_time,
+        "courier_id_who_complete": order.courier_id_who_complete
     }
 
     return date_json
@@ -311,6 +331,11 @@ def import_orders():
            }, 201
 
 
+@app.route('/orders/count', methods=['GET'])
+def get_count_orders():
+    return jsonify(len(Orders.query.all())), 200
+
+
 # Для тестирования раскомментировать вторую строчку с now_time
 def time_intersects(courier, order):
     for courier_time in courier.working_hours:
@@ -324,7 +349,7 @@ def time_intersects(courier, order):
             if start_1 < end_2 and start_2 < end_1:
                 str_now_time = datetime.datetime.now().strftime('%H:%M')
                 now_time = datetime.datetime.strptime(str_now_time, "%H:%M")
-                # now_time = datetime.datetime.strptime("14:01", "%H:%M")
+                now_time = datetime.datetime.strptime("14:01", "%H:%M")
                 if start_1 < now_time < end_1 and start_2 < now_time < end_2:
                     return True
     return False
@@ -350,9 +375,9 @@ def assigning_order():
                 new_list_order.append(order)
                 new_list_order_id.append({'id': order.order_id})
 
-        # Если список не пустой, то ещё есть неразвезенные заказы.
-        #  Если список пустой, то занулим список и наберем новые заказы
-        #  в основном теле функции
+        # Если список не пустой, то ещё есть неразвезённые заказы.
+        #   Если список пустой, то занулим список и наберем новые заказы
+        #   в основном теле функции
         courier.orders = new_list_order
 
         if len(new_list_order) > 0:
@@ -369,11 +394,10 @@ def assigning_order():
     ).first().regions
     couriers_region = [int(str(i)) for i in couriers_region]
 
-    s = Orders.query.all()
-
     # Получим все свободные заказы, подходящие по региону
     orders_with_right_regions = Orders.query.filter(
         Orders.region.in_(couriers_region)
+        & Orders.courier_id_who_complete.is_(None)
         & Orders.courier_id.is_(None)
     ).order_by(db.asc(Orders.weight)).all()
 
@@ -433,12 +457,23 @@ def complete_order():
         return '', 400
 
     order.complete_time = complete_time
+    order.courier_id_who_complete = order.courier_id
 
     session.commit()
 
     return {
                'order_id': order_id
            }, 200
+
+
+@app.route('/courier/<int:courier_id>', methods=['GET'])
+def get_inf_for_courier(courier_id):
+    courier = Couriers.query.filter(
+        Couriers.courier_id == courier_id
+    ).first()
+
+    if not courier:
+        return '', 404
 
 
 @app.teardown_appcontext

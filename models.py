@@ -23,7 +23,6 @@ class Couriers(Base):
                                  cascade="all, delete, delete-orphan",
                                  backref='courier')
     orders = relationship("Orders",
-                          cascade="all, delete, delete-orphan",
                           backref='courier')
 
     def __repr__(self):
@@ -77,6 +76,8 @@ class Orders(Base):
                               nullable=True)
     region = db.Column(db.Integer,
                        nullable=False)
+    courier_id_who_complete = db.Column(db.Integer,
+                                        nullable=True)
     courier_id = db.Column(db.Integer,
                            db.ForeignKey('Couriers.courier_id'),
                            nullable=True)

@@ -233,7 +233,7 @@ def successful_post_orders():
                               {
                                   "order_id": 5,
                                   "weight": 30,
-                                  "region": 22,
+                                  "region": 33,
                                   "delivery_hours": ["09:00-20:00"]
                               }
                           ]
@@ -488,6 +488,33 @@ def successful_assigning_order_1_finally():
     assert answer_json['orders'] == right_answer_json['orders'], answer_json
 
 
+def successful_patch_courier_3_regions():
+    # пример из ТЗ
+    res = client.patch('/couriers/3',
+                       json={
+                           "regions": [12, 21, 22]
+                       })
+    status_code = res.status_code
+    answer_json = res.get_json()
+
+    right_status_code = 200
+    right_answer_json = {
+        "courier_id": 3,
+        "courier_type": "car",
+        "regions": [12, 21, 22],
+        "working_hours": ["09:00-15:00"]
+    }
+
+    assert status_code == right_status_code, status_code
+    assert answer_json == right_answer_json, answer_json
+
+
+def print_count_orders():
+    res = client.get('/orders/count')
+    json_orders = res.get_json()
+    print(json_orders)
+
+
 def test_pack():
     del_orders()
     del_couriers()
@@ -510,7 +537,15 @@ def test_pack():
 
     successful_assigning_order_courier_1_after_complete()
     successful_complete_order_3()
+
+    # print("Orders:")
+    # print_orders()
+    # print("\nCouriers:")
+    # print_couriers()
+
     successful_assigning_order_1_finally()
+
+    successful_patch_courier_3_regions()
 
     # print("Orders:")
     # print_orders()
@@ -548,6 +583,7 @@ def testing_db():
     successful_assigning_order_courier_1_after_complete()
     successful_complete_order_3()
     successful_assigning_order_1_finally()
+    successful_patch_courier_3_regions()
 
     del_couriers()
     del_orders()
@@ -555,4 +591,4 @@ def testing_db():
 
 if __name__ == '__main__':
     test_pack()
-    testing_db()
+    # testing_db()
