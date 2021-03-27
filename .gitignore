@@ -2,3 +2,8 @@
 */venv
 */.idea/
 */.idea
+/venv/
+/venv
+/.idea/
+/.idea
+__pycache__/
