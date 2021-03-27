@@ -3,6 +3,7 @@ import datetime
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
+from constants import courier_type_weight
 
 app = Flask(__name__)
 client = app.test_client()
@@ -30,6 +31,9 @@ def date_courier_in_json(courier):
 
     working_hours = list(courier.working_hours)
     working_hours = [str(x) for x in working_hours]
+
+    orders = list(courier.orders)
+    orders = [str(x) for x in orders]
 
     date_json = {
         "courier_id": courier.courier_id,
@@ -214,7 +218,10 @@ def date_order_in_json(order):
         "order_id": order.order_id,
         "weight": order.weight,
         "region": order.region,
-        "delivery_hours": delivery_hours
+        "delivery_hours": delivery_hours,
+        "courier_id": order.courier_id,
+        "time_accept": order.time_accept,
+        "complete_time": order.complete_time
     }
 
     return date_json
@@ -282,7 +289,8 @@ def import_orders():
 
         new_order = Orders(order_id=order_id,
                            weight=weight,
-                           region=region)
+                           region=region,
+                           courier_id=None)
 
         # Добавим время доставки для курьера
         new_order.delivery_hours = []
@@ -306,6 +314,21 @@ def import_orders():
            }, 201
 
 
+def time_intersects(courier, order):
+    for courier_time in courier.working_hours:
+        for order_time in order.delivery_hours:
+            start_1 = courier_time.working_hours_start
+            end_1 = courier_time.working_hours_end
+            start_2 = order_time.delivery_hours_start
+            end_2 = order_time.delivery_hours_end
+
+            # Условие пересечения времени
+            if start_1 <= end_2 and start_2 <= end_1:
+                return True
+
+    return False
+
+
 @app.route('/orders/assign', methods=['POST'])
 def assigning_order():
     params = request.json
@@ -313,15 +336,55 @@ def assigning_order():
     # key = "courier_id"
     # value - сам id
     courier_id = params['courier_id']
-    print(courier_id)
+    courier = Couriers.query.filter_by(courier_id=courier_id).first()
 
-    couriers_region = Couriers.query.filter_by(courier_id=courier_id).first().regions
+    if not courier:
+        return '', 400
 
-    # suitable_orders = Orders.query.filter_by().first()
+    # Получим все регионы у заданного курьера
+    couriers_region = Couriers.query.filter_by(
+        courier_id=courier_id
+    ).first().regions
+    couriers_region = [int(str(i)) for i in couriers_region]
 
-    print(couriers_region)
+    s = Orders.query.all()
 
-    return '', 200
+    # Получим все свободные заказы, подходящие по региону
+    orders_with_right_regions = Orders.query.filter(
+        Orders.region.in_(couriers_region)
+        & Orders.courier_id.is_(None)
+    ).all()
+
+    # Получим заказы, подходящие по времени
+    right_orders = []
+    for order in orders_with_right_regions:
+        if time_intersects(courier, order):
+            right_orders.append(order)
+
+    # Добавим для курьера заказ
+    courier.orders = []
+    weight_orders = 0
+    max_courier_weight = courier_type_weight[courier.courier_type]
+    good_order_id = []  # Список order_id, которые добавили курьеру
+    for order in right_orders:
+        if order.weight + weight_orders <= max_courier_weight:
+            courier.orders.append(order)
+            weight_orders += order.weight
+            order.courier_id = courier.courier_id
+            good_order_id.append({"id": order.order_id})
+
+    session.commit()
+
+    # Если подходящих заказов нет, то вернем сообщение
+    if len(good_order_id) == 0:
+        return {
+                   "orders": []
+               }, 200
+
+    return {
+               "orders": good_order_id,
+               "assign_time": datetime.datetime.utcnow().isoformat() + "Z"
+           }, 200
 
 
 @app.teardown_appcontext

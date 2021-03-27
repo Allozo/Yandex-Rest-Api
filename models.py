@@ -27,7 +27,7 @@ class Couriers(Base):
                           backref='courier')
 
     def __repr__(self):
-        return f"{self.courier_id}, {self.courier_type}"
+        return f"Courier<{self.courier_id}, {self.courier_type}>"
 
 
 class CouriersWorkingTime(Base):
@@ -84,6 +84,9 @@ class Orders(Base):
     delivery_hours = relationship("OrderDeliveryTime",
                                   cascade="all, delete, delete-orphan",
                                   backref='order')
+
+    def __repr__(self):
+        return f'Order<{self.order_id}>'
 
 
 class OrderDeliveryTime(Base):

@@ -22,7 +22,7 @@ def successful_post_couriers():
                                   "courier_id": 3,
                                   "courier_type": "car",
                                   "regions": [12, 22, 23, 33],
-                                  "working_hours": ["09:00-15:00"]
+                                  "working_hours": ["09:00-16:00"]
                               },
 
                           ]
@@ -218,14 +218,14 @@ def successful_post_orders():
                               },
                               {
                                   "order_id": 4,
-                                  "weight": 23,
+                                  "weight": 20,
                                   "region": 22,
-                                  "delivery_hours": ["09:00-20:00"]
+                                  "delivery_hours": ["16:00-20:00"]
                               },
                               {
                                   "order_id": 5,
-                                  "weight": 23,
-                                  "region": 19,
+                                  "weight": 30,
+                                  "region": 22,
                                   "delivery_hours": ["09:00-20:00"]
                               }
                           ]
@@ -286,7 +286,7 @@ def error_post_orders():
     assert answer_json == expected_error_json, answer_json
 
 
-def successful_assigning_order():
+def successful_assigning_order_courier_1():
     res = client.post('/orders/assign',
                       json={
                           "courier_id": 1
@@ -298,12 +298,50 @@ def successful_assigning_order():
 
     right_status_code = 200
     right_answer_json = {
-        "orders": [{"id": 1}, {"id": 2}, {"id": 3}],
+        "orders": [{"id": 1}, {"id": 3}],
         "assign_time": "2021-01-10T09:32:14.42Z"
     }
 
-    # assert status_code == right_status_code, status_code
-    print(answer_json)
+    assert status_code == right_status_code, status_code
+    assert answer_json['orders'] == right_answer_json['orders'], answer_json
+
+
+def successful_assigning_order_courier_2():
+    res = client.post('/orders/assign',
+                      json={
+                          "courier_id": 2
+                      }
+                      )
+
+    status_code = res.status_code
+    answer_json = res.get_json()
+
+    right_status_code = 200
+    right_answer_json = {
+        "orders": [],
+    }
+
+    assert status_code == right_status_code, status_code
+    assert answer_json['orders'] == right_answer_json['orders'], answer_json
+
+
+def successful_assigning_order_courier_3():
+    res = client.post('/orders/assign',
+                      json={
+                          "courier_id": 3
+                      }
+                      )
+
+    status_code = res.status_code
+    answer_json = res.get_json()
+
+    right_status_code = 200
+    right_answer_json = {
+        "orders": [{'id': 4}, {'id': 5}],
+    }
+
+    assert status_code == right_status_code, status_code
+    assert answer_json['orders'] == right_answer_json['orders'], answer_json
 
 
 def test_pack():
@@ -313,7 +351,24 @@ def test_pack():
     successful_post_couriers()
     successful_post_orders()
 
-    successful_assigning_order()
+    successful_assigning_order_courier_1()
+
+    # print_orders()
+    # print_couriers()
+
+    print()
+
+    successful_assigning_order_courier_2()
+
+    # print_orders()
+    # print_couriers()
+
+    print()
+
+    successful_assigning_order_courier_3()
+
+    print_orders()
+    print_couriers()
 
     del_orders()
     del_couriers()
@@ -333,6 +388,10 @@ def testing_db():
 
     successful_post_orders()
     error_post_orders()
+
+    successful_assigning_order_courier_1()
+    successful_assigning_order_courier_2()
+    successful_assigning_order_courier_3()
 
     # print_couriers()
     # print_orders()
