@@ -557,9 +557,6 @@ def get_courier_earnings(courier_id):
         (Orders.courier_id == courier_id)
     ).all()
 
-    # print(complete_orders)
-    # print(orders_while_not_complete)
-
     complete_orders_type_assign = get_order_type_assign(complete_orders)
     not_complete_orders_type_assign = get_order_type_assign(orders_while_not_complete)
 
@@ -571,9 +568,6 @@ def get_courier_earnings(courier_id):
                 if assign_time in not_complete_orders_type_assign[type_order]:
                     continue
             earnings += 500 * cost_courier_type[type_order]
-
-    # print("1", complete_orders_type_assign)
-    # print("2", not_complete_orders_type_assign)
 
     return earnings
 
