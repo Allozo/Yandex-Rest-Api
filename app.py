@@ -3,7 +3,7 @@ import datetime
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from constants import courier_type_weight
+from constants import courier_type_weight, cost_courier_type
 
 app = Flask(__name__)
 
@@ -22,7 +22,7 @@ from models import *
 Base.metadata.create_all(bind=engine)
 
 
-# Все поля курьера переводятся в json
+# Поля курьера переводятся в json
 def date_courier_in_json(courier):
     # переведем элементы списка в строки
     regions = list(courier.regions)
@@ -35,7 +35,7 @@ def date_courier_in_json(courier):
         "courier_id": courier.courier_id,
         "courier_type": courier.courier_type,
         "regions": regions,
-        "working_hours": working_hours
+        "working_hours": working_hours,
     }
 
     return date_json
@@ -200,7 +200,7 @@ def update_courier(courier_id):
     if len(courier.orders) > 0:
         orders = courier.orders
         courier_regions = courier.regions
-        courier_regions = [int(str(x)) for x in courier.regions]
+        courier_regions = [int(str(x)) for x in courier_regions]
 
         new_orders_list = []
 
@@ -208,10 +208,12 @@ def update_courier(courier_id):
             if order.complete_time:
                 continue
 
-            if time_intersects(courier, order) and (order.region in courier_regions):
+            if time_intersects(courier, order) and (
+                    order.region in courier_regions):
                 new_orders_list.append(order)
             else:
                 order.assign_time = None
+                order.type_courier_who_complete = None
                 order.courier = None
 
         courier.orders = new_orders_list
@@ -412,12 +414,13 @@ def assigning_order():
     weight_orders = 0
     max_courier_weight = courier_type_weight[courier.courier_type]
     good_order_id = []  # Список order_id, которые добавили курьеру
-    assign_time = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    assign_time = datetime.datetime.utcnow().isoformat() + "Z"
     for order in right_orders:
         if order.weight + weight_orders <= max_courier_weight:
             weight_orders += order.weight
             order.courier_id = courier.courier_id
             order.assign_time = assign_time
+            order.type_courier_who_complete = courier.courier_type
             courier.orders.append(order)
             good_order_id.append({"id": order.order_id})
 
@@ -458,12 +461,121 @@ def complete_order():
 
     order.complete_time = complete_time
     order.courier_id_who_complete = order.courier_id
+    order.type_courier_who_complete = courier.courier_type
 
     session.commit()
 
     return {
                'order_id': order_id
            }, 200
+
+
+def get_courier_rating(courier_id):
+    orders_completing_courier = Orders.query.filter_by(
+        courier_id_who_complete=courier_id).all()
+
+    if len(orders_completing_courier) == 0:
+        return None
+
+    # Получим словарь регионов - списков order
+    dict_list_order_by_region = {}
+    for order in orders_completing_courier:
+        if order.region not in dict_list_order_by_region:
+            dict_list_order_by_region[order.region] = list()
+        dict_list_order_by_region[order.region].append(order)
+
+    # Получим словарь регионов - словарей assign_time - списков order
+    dict_region_assign_time = {}
+    for region, list_order in dict_list_order_by_region.items():
+        dict_region_assign_time[region] = {}
+
+        for order in list_order:
+            if order.assign_time not in dict_region_assign_time[region]:
+                dict_region_assign_time[region][order.assign_time] = []
+            dict_region_assign_time[region][order.assign_time].append(order)
+
+    dict_region_time_delivery = {}
+    for region, assign_time_list_orders in dict_region_assign_time.items():
+        dict_region_time_delivery[region] = []
+        for assign_time, list_orders in assign_time_list_orders.items():
+            list_delivery_time = []
+            datetime_assign_time = datetime.datetime.strptime(assign_time,
+                                                              "%Y-%m-%dT%H:%M:%S.%fZ")
+            for order in list_orders:
+                order_complete_time = order.complete_time
+                order_complete_time = datetime.datetime.strptime(
+                    order_complete_time, "%Y-%m-%dT%H:%M:%S.%fZ")
+
+                list_delivery_time.append(order_complete_time)
+
+            list_delivery_time.sort()
+            list_delivery_time.insert(0, datetime_assign_time)
+
+            # Получили список времен заказов, отсортированых в порядке
+            #   их выполнения (в начале стоит assign_time)
+
+            for i in range(len(list_delivery_time) - 1):
+                difference_between_complete_time = abs((list_delivery_time[i] -
+                                                        list_delivery_time[
+                                                            i + 1]).total_seconds())
+                dict_region_time_delivery[region].append(
+                    difference_between_complete_time)
+
+    # Получим td[i] - среднее время доставки заказы в районе i
+    td = {}
+    for region, list_time in dict_region_time_delivery.items():
+        td[region] = sum(list_time) / len(list_time)
+    t = min(td.values())
+    rating = (60 * 60 - min(t, 60 * 60)) / (60 * 60) * 5
+    return rating
+
+
+def get_order_type_assign(orders):
+    dict_type_assign_orders = {}
+    for order in orders:
+        order_type = order.type_courier_who_complete
+
+        if order_type not in dict_type_assign_orders:
+            dict_type_assign_orders[order_type] = {}
+
+        if order.assign_time not in dict_type_assign_orders[order_type]:
+            dict_type_assign_orders[order_type][order.assign_time] = []
+
+        dict_type_assign_orders[order_type][order.assign_time].append(order)
+
+    return dict_type_assign_orders
+
+
+def get_courier_earnings(courier_id):
+    complete_orders = Orders.query.filter(
+        (Orders.courier_id_who_complete == courier_id)
+    ).all()
+
+    orders_while_not_complete = Orders.query.filter(
+        (Orders.complete_time.is_(None))
+        &
+        (Orders.courier_id == courier_id)
+    ).all()
+
+    # print(complete_orders)
+    # print(orders_while_not_complete)
+
+    complete_orders_type_assign = get_order_type_assign(complete_orders)
+    not_complete_orders_type_assign = get_order_type_assign(orders_while_not_complete)
+
+    earnings = 0
+
+    for type_order, assign_list_order in complete_orders_type_assign.items():
+        for assign_time, list_orders in assign_list_order.items():
+            if type_order in not_complete_orders_type_assign:
+                if assign_time in not_complete_orders_type_assign[type_order]:
+                    continue
+            earnings += 500 * cost_courier_type[type_order]
+
+    # print("1", complete_orders_type_assign)
+    # print("2", not_complete_orders_type_assign)
+
+    return earnings
 
 
 @app.route('/courier/<int:courier_id>', methods=['GET'])
@@ -474,6 +586,15 @@ def get_inf_for_courier(courier_id):
 
     if not courier:
         return '', 404
+
+    courier.rating = get_courier_rating(courier_id)
+    courier.earnings = get_courier_earnings(courier_id)
+
+    courier_inf_json = date_courier_in_json(courier)
+    courier_inf_json["earnings"] = courier.earnings
+    if courier.rating is not None:
+        courier_inf_json["rating"] = courier.rating
+    return courier_inf_json, 200
 
 
 @app.teardown_appcontext

@@ -78,6 +78,8 @@ class Orders(Base):
                        nullable=False)
     courier_id_who_complete = db.Column(db.Integer,
                                         nullable=True)
+    type_courier_who_complete = db.Column(db.String(70),
+                                          nullable=True)
     courier_id = db.Column(db.Integer,
                            db.ForeignKey('Couriers.courier_id'),
                            nullable=True)

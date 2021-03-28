@@ -1,7 +1,6 @@
 from app import app
 import json
 
-
 client = app.test_client()
 
 
@@ -307,7 +306,7 @@ def successful_assigning_order_courier_1():
 
     right_status_code = 200
     '''
-        Если падает тут
+        Если падает тут, то стоит обратить внимаение на порядок id
     '''
     right_answer_json = {
         "orders": [{"id": 3}, {"id": 1}],
@@ -515,6 +514,88 @@ def print_count_orders():
     print(json_orders)
 
 
+def print_inf_for_courier_1():
+    res = client.get('/courier/1')
+
+    answer_status_code = res.status_code
+    answer_json = res.get_json()
+
+    # print(json.dumps(answer_json, sort_keys=True, indent=4))
+
+    right_status_code = 200
+    right_json = {
+        "courier_id": 1,
+        "courier_type": "foot",
+        "earnings": 1000,
+        "rating": 0.0,
+        "regions": [
+            1,
+            12,
+            22
+        ],
+        "working_hours": [
+            "11:35-14:05",
+            "09:00-11:00"
+        ]
+    }
+
+    assert answer_status_code == right_status_code, answer_status_code
+    assert answer_json == right_json, answer_json
+
+
+def print_inf_for_courier_2():
+    res = client.get('/courier/2')
+
+    answer_status_code = res.status_code
+    answer_json = res.get_json()
+
+    # print(json.dumps(answer_json, sort_keys=True, indent=4))
+
+    right_status_code = 200
+    right_json = {
+        "courier_id": 2,
+        "courier_type": "bike",
+        "earnings": 0,
+        "regions": [
+            22
+        ],
+        "working_hours": [
+            "09:00-18:00"
+        ]
+    }
+
+    assert answer_status_code == right_status_code, answer_status_code
+    assert answer_json == right_json, answer_json
+
+
+def print_inf_for_courier_3():
+    res = client.get('/courier/3')
+
+    answer_status_code = res.status_code
+    answer_json = res.get_json()
+
+    # print(json.dumps(answer_json, sort_keys=True, indent=4))
+
+    right_status_code = 200
+    right_json = {
+        "courier_id": 3,
+        "courier_type": "car",
+        "earnings": 4500,
+        "rating": 0.0,
+        "regions": [
+            12,
+            21,
+            22
+        ],
+        "working_hours": [
+            "09:00-15:00"
+        ]
+    }
+
+    assert answer_status_code == right_status_code, answer_status_code
+    assert answer_json == right_json, answer_json
+
+
 def test_pack():
     del_orders()
     del_couriers()
@@ -526,11 +607,6 @@ def test_pack():
     successful_assigning_order_courier_2()
     successful_assigning_order_courier_3()
 
-    # print("Orders:")
-    # print_orders()
-    # print("\nCouriers:")
-    # print_couriers()
-
     successful_complete_order_1()
     error_complete_order()
     successful_complete_order_4()
@@ -538,57 +614,17 @@ def test_pack():
     successful_assigning_order_courier_1_after_complete()
     successful_complete_order_3()
 
-    # print("Orders:")
-    # print_orders()
-    # print("\nCouriers:")
-    # print_couriers()
-
     successful_assigning_order_1_finally()
 
     successful_patch_courier_3_regions()
 
-    # print("Orders:")
-    # print_orders()
-    # print("\nCouriers:")
-    # print_couriers()
+    print_inf_for_courier_1()
+    print_inf_for_courier_2()
+    print_inf_for_courier_3()
 
     del_orders()
     del_couriers()
-
-
-def testing_db():
-    del_couriers()
-    del_orders()
-
-    successful_post_couriers()
-    error_post_couriers()
-
-    successful_patch_courier_regions()
-    successful_patch_courier_type()
-    successful_patch_courier_working_hours()
-    error_patch_courier()
-
-    successful_post_orders()
-    error_post_orders()
-
-    successful_assigning_order_courier_1()
-    successful_assigning_order_courier_2()
-    successful_assigning_order_courier_3()
-    error_assigning_order()
-
-    successful_complete_order_1()
-    error_complete_order()
-    successful_complete_order_4()
-
-    successful_assigning_order_courier_1_after_complete()
-    successful_complete_order_3()
-    successful_assigning_order_1_finally()
-    successful_patch_courier_3_regions()
-
-    del_couriers()
-    del_orders()
 
 
 if __name__ == '__main__':
     test_pack()
-    # testing_db()
