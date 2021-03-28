@@ -460,7 +460,6 @@ def error_complete_order():
                       })
 
     status_code = res.status_code
-    answer_json = res.get_json()
 
     right_status_code = 400
 
@@ -597,8 +596,8 @@ def print_inf_for_courier_3():
 
 
 def test_pack():
-    del_orders()
-    del_couriers()
+    # del_orders()
+    # del_couriers()
 
     successful_post_couriers()
     successful_post_orders()
@@ -622,8 +621,8 @@ def test_pack():
     print_inf_for_courier_2()
     print_inf_for_courier_3()
 
-    del_orders()
-    del_couriers()
+    # del_orders()
+    # del_couriers()
 
 
 if __name__ == '__main__':

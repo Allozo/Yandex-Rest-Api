@@ -5,6 +5,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from constants import courier_type_weight, cost_courier_type
 
+_is_Test = True
+
 app = Flask(__name__)
 
 # создадим объект, который будет использоваться для связи с БД
@@ -20,6 +22,10 @@ Base.query = session.query_property()
 from models import *
 
 Base.metadata.create_all(bind=engine)
+
+'''
+    Ниже будут методы необходимые для работы сервера
+'''
 
 
 # Поля курьера переводятся в json
@@ -39,34 +45,6 @@ def date_courier_in_json(courier):
     }
 
     return date_json
-
-
-# Тестовый метод для вывода всех курьеров
-@app.route('/couriers', methods=['GET'])
-def get_couriers():
-    all_couriers = Couriers.query.all()
-
-    serialised = []
-    for courier in all_couriers:
-        date_json_courier = date_courier_in_json(courier)
-        date_json_courier['orders'] = str(courier.orders)
-        serialised.append(date_json_courier)
-
-    return jsonify(serialised)
-
-
-# Тестовый метод для удаления всех курьеров
-#  (и их регионов и рабочих часов)
-@app.route('/couriers', methods=['DELETE'])
-def del_couriers():
-    couriers = Couriers.query.all()
-
-    for courier in couriers:
-        session.delete(courier)
-
-    session.commit()
-
-    return '', 200
 
 
 def get_bad_id_for_couriers(json_all_couriers):
@@ -91,6 +69,230 @@ def get_time_from_str(str_pair_date):
     end_time = datetime.datetime.strptime(pair_date[1], "%H:%M")
 
     return [start_time, end_time]
+
+
+# Все поля заказа переводятся в json
+def date_order_in_json(order):
+    # переведем элементы списка в строки
+
+    delivery_hours = list(order.delivery_hours)
+    delivery_hours = [str(x) for x in delivery_hours]
+
+    date_json = {
+        "order_id": order.order_id,
+        "weight": order.weight,
+        "region": order.region,
+        "delivery_hours": delivery_hours,
+        "courier_id": order.courier_id,
+        "assign_time": order.assign_time,
+        "complete_time": order.complete_time,
+        "courier_id_who_complete": order.courier_id_who_complete
+    }
+
+    return date_json
+
+
+def get_bad_id_for_orders(json_all_orders):
+    list_bad_id = []
+
+    for json_order in json_all_orders['data']:
+        if None in [json_order['weight'],
+                    json_order['region'],
+                    json_order['delivery_hours']
+                    ] or not (0.01 <= json_order['weight'] <= 50):
+            list_bad_id.append({'id': json_order['order_id']})
+
+    return list_bad_id
+
+
+# Для тестирования раскомментировать вторую строчку с now_time
+def time_intersects(courier, order):
+    for courier_time in courier.working_hours:
+        for order_time in order.delivery_hours:
+            start_1 = courier_time.working_hours_start
+            end_1 = courier_time.working_hours_end
+            start_2 = order_time.delivery_hours_start
+            end_2 = order_time.delivery_hours_end
+
+            # Условие пересечения времени
+            if start_1 < end_2 and start_2 < end_1:
+                str_now_time = datetime.datetime.now().strftime('%H:%M')
+                now_time = datetime.datetime.strptime(str_now_time, "%H:%M")
+                if _is_Test:
+                    now_time = datetime.datetime.strptime("14:01", "%H:%M")
+                if start_1 < now_time < end_1 and start_2 < now_time < end_2:
+                    return True
+    return False
+
+
+def get_courier_rating(courier_id):
+    orders_completing_courier = Orders.query.filter_by(
+        courier_id_who_complete=courier_id).all()
+
+    if len(orders_completing_courier) == 0:
+        return None
+
+    # Получим словарь регионов - списков order
+    dict_list_order_by_region = {}
+    for order in orders_completing_courier:
+        if order.region not in dict_list_order_by_region:
+            dict_list_order_by_region[order.region] = list()
+        dict_list_order_by_region[order.region].append(order)
+
+    # Получим словарь регионов - словарей assign_time - списков order
+    dict_region_assign_time = {}
+    for region, list_order in dict_list_order_by_region.items():
+        dict_region_assign_time[region] = {}
+
+        for order in list_order:
+            if order.assign_time not in dict_region_assign_time[region]:
+                dict_region_assign_time[region][order.assign_time] = []
+            dict_region_assign_time[region][order.assign_time].append(order)
+
+    dict_region_time_delivery = {}
+    for region, assign_time_list_orders in dict_region_assign_time.items():
+        dict_region_time_delivery[region] = []
+        for assign_time, list_orders in assign_time_list_orders.items():
+            list_delivery_time = []
+            datetime_assign_time = datetime.datetime.strptime(
+                assign_time, "%Y-%m-%dT%H:%M:%S.%fZ")
+            for order in list_orders:
+                order_complete_time = order.complete_time
+                order_complete_time = datetime.datetime.strptime(
+                    order_complete_time, "%Y-%m-%dT%H:%M:%S.%fZ")
+
+                list_delivery_time.append(order_complete_time)
+
+            list_delivery_time.sort()
+            list_delivery_time.insert(0, datetime_assign_time)
+
+            # Получили список времен заказов, отсортированых в порядке
+            #   их выполнения (в начале стоит assign_time)
+
+            for i in range(len(list_delivery_time) - 1):
+                difference_time = abs(
+                    (list_delivery_time[i] - list_delivery_time[i + 1]
+                     ).total_seconds())
+                dict_region_time_delivery[region].append(difference_time)
+
+    # Получим td[i] - среднее время доставки заказы в районе i
+    td = {}
+    for region, list_time in dict_region_time_delivery.items():
+        td[region] = sum(list_time) / len(list_time)
+    t = min(td.values())
+    rating = (60 * 60 - min(t, 60 * 60)) / (60 * 60) * 5
+    return rating
+
+
+def get_order_type_assign(orders):
+    dict_type_assign_orders = {}
+    for order in orders:
+        order_type = order.type_courier_who_complete
+
+        if order_type not in dict_type_assign_orders:
+            dict_type_assign_orders[order_type] = {}
+
+        if order.assign_time not in dict_type_assign_orders[order_type]:
+            dict_type_assign_orders[order_type][order.assign_time] = []
+
+        dict_type_assign_orders[order_type][order.assign_time].append(order)
+
+    return dict_type_assign_orders
+
+
+def get_courier_earnings(courier_id):
+    complete_orders = Orders.query.filter(
+        (Orders.courier_id_who_complete == courier_id)
+    ).all()
+
+    orders_not_complete = Orders.query.filter(
+        (Orders.complete_time.is_(None))
+        &
+        (Orders.courier_id == courier_id)
+    ).all()
+
+    complete_orders_type_assign = get_order_type_assign(complete_orders)
+    not_complete_orders_type_assign = get_order_type_assign(orders_not_complete)
+
+    earnings = 0
+
+    for type_order, assign_list_order in complete_orders_type_assign.items():
+        for assign_time, list_orders in assign_list_order.items():
+            if type_order in not_complete_orders_type_assign:
+                if assign_time in not_complete_orders_type_assign[type_order]:
+                    continue
+            earnings += 500 * cost_courier_type[type_order]
+
+    return earnings
+
+
+'''
+    Ниже методы для сервера, которые нужны для его тестировки
+'''
+
+
+# Тестовый метод для вывода всех курьеров
+@app.route('/couriers', methods=['GET'])
+def get_couriers():
+    all_couriers = Couriers.query.all()
+
+    serialised = []
+    for courier in all_couriers:
+        date_json_courier = date_courier_in_json(courier)
+        date_json_courier['orders'] = str(courier.orders)
+        serialised.append(date_json_courier)
+
+    return jsonify(serialised)
+
+
+# Тестовый метод для удаления всех курьеров
+@app.route('/couriers', methods=['DELETE'])
+def del_couriers():
+    couriers = Couriers.query.all()
+
+    for courier in couriers:
+        session.delete(courier)
+
+    session.commit()
+
+    return '', 200
+
+
+# Тестовый метод для вывода всех заказов
+@app.route('/orders', methods=['GET'])
+def get_orders():
+    all_orders = Orders.query.all()
+
+    serialised = []
+    for order in all_orders:
+        date_json_order = date_order_in_json(order)
+        serialised.append(date_json_order)
+
+    return jsonify(serialised)
+
+
+# Тестовый метод для удаления всех заказов
+@app.route('/orders', methods=['DELETE'])
+def del_orders():
+    orders = Orders.query.all()
+
+    for order in orders:
+        session.delete(order)
+
+    session.commit()
+
+    return '', 200
+
+
+# Тестовый метод для получения количества заказов всего
+@app.route('/orders/count', methods=['GET'])
+def get_count_orders():
+    return jsonify(len(Orders.query.all())), 200
+
+
+'''
+    Ниже основные методы для сервера
+'''
 
 
 @app.route('/couriers', methods=['POST'])
@@ -188,11 +390,11 @@ def update_courier(courier_id):
             for new_time in value:
                 pair_time = get_time_from_str(new_time)
 
-                new_instance_time = CouriersWorkingTime(courier_id=courier_id,
-                                                        working_hours_start=
-                                                        pair_time[0],
-                                                        working_hours_end=
-                                                        pair_time[1])
+                new_instance_time = CouriersWorkingTime(
+                    courier_id=courier_id,
+                    working_hours_start=pair_time[0],
+                    working_hours_end=pair_time[1]
+                )
 
                 courier.working_hours.append(new_instance_time)
 
@@ -223,66 +425,6 @@ def update_courier(courier_id):
     date_courier_json = date_courier_in_json(courier)
 
     return jsonify(date_courier_json), 200
-
-
-# Все поля заказа переводятся в json
-def date_order_in_json(order):
-    # переведем элементы списка в строки
-
-    delivery_hours = list(order.delivery_hours)
-    delivery_hours = [str(x) for x in delivery_hours]
-
-    date_json = {
-        "order_id": order.order_id,
-        "weight": order.weight,
-        "region": order.region,
-        "delivery_hours": delivery_hours,
-        "courier_id": order.courier_id,
-        "assign_time": order.assign_time,
-        "complete_time": order.complete_time,
-        "courier_id_who_complete": order.courier_id_who_complete
-    }
-
-    return date_json
-
-
-# Тестовый метод для вывода всех заказов
-@app.route('/orders', methods=['GET'])
-def get_orders():
-    all_orders = Orders.query.all()
-
-    serialised = []
-    for order in all_orders:
-        date_json_order = date_order_in_json(order)
-        serialised.append(date_json_order)
-
-    return jsonify(serialised)
-
-
-# Тестовый метод для удаления всех заказов
-@app.route('/orders', methods=['DELETE'])
-def del_orders():
-    orders = Orders.query.all()
-
-    for order in orders:
-        session.delete(order)
-
-    session.commit()
-
-    return '', 200
-
-
-def get_bad_id_for_orders(json_all_orders):
-    list_bad_id = []
-
-    for json_order in json_all_orders['data']:
-        if None in [json_order['weight'],
-                    json_order['region'],
-                    json_order['delivery_hours']
-                    ] or not (0.01 <= json_order['weight'] <= 50):
-            list_bad_id.append({'id': json_order['order_id']})
-
-    return list_bad_id
 
 
 @app.route('/orders', methods=['POST'])
@@ -331,30 +473,6 @@ def import_orders():
     return {
                "orders": list_good_id
            }, 201
-
-
-@app.route('/orders/count', methods=['GET'])
-def get_count_orders():
-    return jsonify(len(Orders.query.all())), 200
-
-
-# Для тестирования раскомментировать вторую строчку с now_time
-def time_intersects(courier, order):
-    for courier_time in courier.working_hours:
-        for order_time in order.delivery_hours:
-            start_1 = courier_time.working_hours_start
-            end_1 = courier_time.working_hours_end
-            start_2 = order_time.delivery_hours_start
-            end_2 = order_time.delivery_hours_end
-
-            # Условие пересечения времени
-            if start_1 < end_2 and start_2 < end_1:
-                str_now_time = datetime.datetime.now().strftime('%H:%M')
-                now_time = datetime.datetime.strptime(str_now_time, "%H:%M")
-                now_time = datetime.datetime.strptime("14:01", "%H:%M")
-                if start_1 < now_time < end_1 and start_2 < now_time < end_2:
-                    return True
-    return False
 
 
 @app.route('/orders/assign', methods=['POST'])
@@ -468,108 +586,6 @@ def complete_order():
     return {
                'order_id': order_id
            }, 200
-
-
-def get_courier_rating(courier_id):
-    orders_completing_courier = Orders.query.filter_by(
-        courier_id_who_complete=courier_id).all()
-
-    if len(orders_completing_courier) == 0:
-        return None
-
-    # Получим словарь регионов - списков order
-    dict_list_order_by_region = {}
-    for order in orders_completing_courier:
-        if order.region not in dict_list_order_by_region:
-            dict_list_order_by_region[order.region] = list()
-        dict_list_order_by_region[order.region].append(order)
-
-    # Получим словарь регионов - словарей assign_time - списков order
-    dict_region_assign_time = {}
-    for region, list_order in dict_list_order_by_region.items():
-        dict_region_assign_time[region] = {}
-
-        for order in list_order:
-            if order.assign_time not in dict_region_assign_time[region]:
-                dict_region_assign_time[region][order.assign_time] = []
-            dict_region_assign_time[region][order.assign_time].append(order)
-
-    dict_region_time_delivery = {}
-    for region, assign_time_list_orders in dict_region_assign_time.items():
-        dict_region_time_delivery[region] = []
-        for assign_time, list_orders in assign_time_list_orders.items():
-            list_delivery_time = []
-            datetime_assign_time = datetime.datetime.strptime(assign_time,
-                                                              "%Y-%m-%dT%H:%M:%S.%fZ")
-            for order in list_orders:
-                order_complete_time = order.complete_time
-                order_complete_time = datetime.datetime.strptime(
-                    order_complete_time, "%Y-%m-%dT%H:%M:%S.%fZ")
-
-                list_delivery_time.append(order_complete_time)
-
-            list_delivery_time.sort()
-            list_delivery_time.insert(0, datetime_assign_time)
-
-            # Получили список времен заказов, отсортированых в порядке
-            #   их выполнения (в начале стоит assign_time)
-
-            for i in range(len(list_delivery_time) - 1):
-                difference_between_complete_time = abs((list_delivery_time[i] -
-                                                        list_delivery_time[
-                                                            i + 1]).total_seconds())
-                dict_region_time_delivery[region].append(
-                    difference_between_complete_time)
-
-    # Получим td[i] - среднее время доставки заказы в районе i
-    td = {}
-    for region, list_time in dict_region_time_delivery.items():
-        td[region] = sum(list_time) / len(list_time)
-    t = min(td.values())
-    rating = (60 * 60 - min(t, 60 * 60)) / (60 * 60) * 5
-    return rating
-
-
-def get_order_type_assign(orders):
-    dict_type_assign_orders = {}
-    for order in orders:
-        order_type = order.type_courier_who_complete
-
-        if order_type not in dict_type_assign_orders:
-            dict_type_assign_orders[order_type] = {}
-
-        if order.assign_time not in dict_type_assign_orders[order_type]:
-            dict_type_assign_orders[order_type][order.assign_time] = []
-
-        dict_type_assign_orders[order_type][order.assign_time].append(order)
-
-    return dict_type_assign_orders
-
-
-def get_courier_earnings(courier_id):
-    complete_orders = Orders.query.filter(
-        (Orders.courier_id_who_complete == courier_id)
-    ).all()
-
-    orders_while_not_complete = Orders.query.filter(
-        (Orders.complete_time.is_(None))
-        &
-        (Orders.courier_id == courier_id)
-    ).all()
-
-    complete_orders_type_assign = get_order_type_assign(complete_orders)
-    not_complete_orders_type_assign = get_order_type_assign(orders_while_not_complete)
-
-    earnings = 0
-
-    for type_order, assign_list_order in complete_orders_type_assign.items():
-        for assign_time, list_orders in assign_list_order.items():
-            if type_order in not_complete_orders_type_assign:
-                if assign_time in not_complete_orders_type_assign[type_order]:
-                    continue
-            earnings += 500 * cost_courier_type[type_order]
-
-    return earnings
 
 
 @app.route('/courier/<int:courier_id>', methods=['GET'])

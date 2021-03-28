@@ -11,3 +11,17 @@
 ```shell
 pip install -r requirements.txt
 ```
+
+## Тестирование 
+
+В директории находится файл с тестами `TestClient.py`. 
+Для запуска теста можно запустить файл с помощью:
+```python
+python TestClient.py
+```
+
+Также можно запустить это файл с помощью бибиотеки pytest:
+```python
+pytest TestClient.py    
+```
+
