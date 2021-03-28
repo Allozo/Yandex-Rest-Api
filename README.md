@@ -17,7 +17,7 @@ sudo apt install python3-pip
 Для установки нужных библиотек воспользуетесь командой:
 
 ```shell
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ## Тестирование 
@@ -28,8 +28,5 @@ pip install -r requirements.txt
 python TestClient.py
 ```
 
-Также можно запустить это файл с помощью библиотеки pytest:
-```python
-pytest TestClient.py    
-```
-
+Будет запущена функция test_pack(), которая вызовет функции тестирования в нужном порядке. 
+Тесты устроены так, чтобы покрывать потенциально проблемные места.
