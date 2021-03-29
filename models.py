@@ -1,4 +1,4 @@
-from DeliveryServer import Base
+from __init__ import Base
 import sqlalchemy as db
 from sqlalchemy.orm import relationship
 
