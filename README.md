@@ -47,7 +47,7 @@ python3 TestClient.py
 Например, если вы клонировали репозиторий в папку `project` (соответственно у вас будет `/project/Yandex`), то вам нужно перейти в папку `/project` и ввести в терминале:
 
 ```shell
-gunicorn -w 4 -b 0.0.0.0:8080 --chdir /home/entrant/project/Yandex/ Yandex:application
+gunicorn -w 4 -b 0.0.0.0:8080 --chdir /<путь_до_папки_Yandex>/Yandex/ Yandex:application
 ```
 
 Для завершения работы нужно нажать сочетания `ctrl + C`. 
