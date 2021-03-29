@@ -11,7 +11,7 @@
 Для скачивания необходимых библиотек будет нужен pip.
 Если его нет, то установить его можно командами:
 
-```shell
+```bash
 sudo apt-get update
 sudo apt install python3-pip
 ```
@@ -20,7 +20,7 @@ sudo apt install python3-pip
 Нужные зависимости указаны в файле `requirements.txt`.
 Для установки нужных библиотек воспользуетесь командой:
 
-```shell
+```bash
 pip3 install -r requirements.txt
 ```
 
@@ -32,6 +32,7 @@ pip3 install -r requirements.txt
 
 В директории находится файл с тестами `TestClient.py`. 
 Для запуска теста можно запустить файл с помощью:
+
 ```python
 python3 TestClient.py
 ```
@@ -46,7 +47,7 @@ python3 TestClient.py
 Для запуска сервиса на `0.0.0.0:8080` перейдем в директорию, которая на уровень выше директории, где находится проект. 
 Например, если вы клонировали репозиторий в папку `project` (соответственно у вас будет `/project/Yandex`), то вам нужно перейти в папку `/project` и ввести в терминале:
 
-```shell
+```bash
 gunicorn -w 4 -b 0.0.0.0:8080 --chdir /<путь_до_папки_Yandex>/Yandex/ Yandex:application
 ```
 
@@ -64,3 +65,32 @@ gunicorn -w 4 -b 0.0.0.0:8080 --chdir /<путь_до_папки_Yandex>/Yandex/
     ```
     sudo fuser -k 8080/tcp
     ```
+
+## Настройка автозагрузки сервиса при включении машины
+
+1. Создадим новый скрипт:
+
+    ```bash
+    sudo nano /etc/init.d/DeliveryServer.script
+    ```
+
+2. В скрипте напишем:
+    
+    ```bash
+    #!/bin/bash
+    sudo /usr/bin/Python<версия вашего Python> <путь_к_Вашему_скрипту> > /dev/null & start
+    ```
+   
+3. Добавим скрипт в автозагрузку:
+
+    ```bash
+    sudo chmod +x /etc/init.d/DeliveryServer.script
+    ```
+   
+Готово!
+
+Если нужно удалить скрипт из автозагрузки, то напишите в терминале это:
+
+```bash
+sudo update-rc.d -f DeliveryServer.script remove
+```
