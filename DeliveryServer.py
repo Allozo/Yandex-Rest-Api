@@ -7,7 +7,7 @@ from constants import courier_type_weight, cost_courier_type
 
 _is_Test = False
 
-app = Flask(__name__)
+application = Flask(__name__)
 
 # создадим объект, который будет использоваться для связи с БД
 engine = create_engine('sqlite:///db.sqlite')
@@ -28,7 +28,7 @@ Base.metadata.create_all(bind=engine)
 '''
 
 
-@app.route("/")
+@application.route("/")
 def hello():
     return jsonify({"message": "Test Server!"})
 
@@ -237,7 +237,7 @@ def get_courier_earnings(courier_id):
 
 
 # Тестовый метод для вывода всех курьеров
-@app.route('/couriers', methods=['GET'])
+@application.route('/couriers', methods=['GET'])
 def get_couriers():
     all_couriers = Couriers.query.all()
 
@@ -251,7 +251,7 @@ def get_couriers():
 
 
 # Тестовый метод для удаления всех курьеров
-@app.route('/couriers', methods=['DELETE'])
+@application.route('/couriers', methods=['DELETE'])
 def del_couriers():
     couriers = Couriers.query.all()
 
@@ -264,7 +264,7 @@ def del_couriers():
 
 
 # Тестовый метод для вывода всех заказов
-@app.route('/orders', methods=['GET'])
+@application.route('/orders', methods=['GET'])
 def get_orders():
     all_orders = Orders.query.all()
 
@@ -277,7 +277,7 @@ def get_orders():
 
 
 # Тестовый метод для удаления всех заказов
-@app.route('/orders', methods=['DELETE'])
+@application.route('/orders', methods=['DELETE'])
 def del_orders():
     orders = Orders.query.all()
 
@@ -290,7 +290,7 @@ def del_orders():
 
 
 # Тестовый метод для получения количества заказов всего
-@app.route('/orders/count', methods=['GET'])
+@application.route('/orders/count', methods=['GET'])
 def get_count_orders():
     return jsonify(len(Orders.query.all())), 200
 
@@ -300,7 +300,7 @@ def get_count_orders():
 '''
 
 
-@app.route('/couriers', methods=['POST'])
+@application.route('/couriers', methods=['POST'])
 def import_couriers():
     json_all_couriers = request.json
 
@@ -360,7 +360,7 @@ def import_couriers():
            }, 201
 
 
-@app.route('/couriers/<int:courier_id>', methods=['PATCH'])
+@application.route('/couriers/<int:courier_id>', methods=['PATCH'])
 def update_courier(courier_id):
     courier = Couriers.query.filter(
         Couriers.courier_id == courier_id
@@ -432,7 +432,7 @@ def update_courier(courier_id):
     return jsonify(date_courier_json), 200
 
 
-@app.route('/orders', methods=['POST'])
+@application.route('/orders', methods=['POST'])
 def import_orders():
     json_all_orders = request.json
 
@@ -480,7 +480,7 @@ def import_orders():
            }, 201
 
 
-@app.route('/orders/assign', methods=['POST'])
+@application.route('/orders/assign', methods=['POST'])
 def assigning_order():
     params = request.json
 
@@ -561,7 +561,7 @@ def assigning_order():
            }, 200
 
 
-@app.route('/orders/complete', methods=['POST'])
+@application.route('/orders/complete', methods=['POST'])
 def complete_order():
     params = request.json
     courier_id = params['courier_id']
@@ -593,7 +593,7 @@ def complete_order():
            }, 200
 
 
-@app.route('/courier/<int:courier_id>', methods=['GET'])
+@application.route('/courier/<int:courier_id>', methods=['GET'])
 def get_inf_for_courier(courier_id):
     courier = Couriers.query.filter(
         Couriers.courier_id == courier_id
@@ -612,10 +612,10 @@ def get_inf_for_courier(courier_id):
     return courier_inf_json, 200
 
 
-@app.teardown_appcontext
+@application.teardown_appcontext
 def shutdown_session(exception=None):
     session.remove()
 
 
 if __name__ == '__main__':
-    app.run()
+    application.run()

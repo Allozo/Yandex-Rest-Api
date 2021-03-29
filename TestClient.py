@@ -1,7 +1,7 @@
-from DeliveryServer import app
+from DeliveryServer import application
 import json
 
-client = app.test_client()
+client = application.test_client()
 
 
 def successful_post_couriers():
