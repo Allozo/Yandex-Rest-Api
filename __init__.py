@@ -29,7 +29,7 @@ Base.metadata.create_all(bind=engine)
 
 
 @application.route("/")
-def hello():
+def test():
     return jsonify({"message": "Test Server!"})
 
 
