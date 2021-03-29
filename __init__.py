@@ -30,7 +30,7 @@ Base.metadata.create_all(bind=engine)
 
 @application.route("/")
 def test():
-    return jsonify({"message": "Test Server!"})
+    return jsonify({"message": "Welcome!"})
 
 
 # Поля курьера переводятся в json
