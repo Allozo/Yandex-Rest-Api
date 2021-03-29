@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from constants import courier_type_weight, cost_courier_type
 
-_is_Test = True
+_is_Test = False
 
 app = Flask(__name__)
 
@@ -26,6 +26,11 @@ Base.metadata.create_all(bind=engine)
 '''
     Ниже будут методы необходимые для работы сервера
 '''
+
+
+@app.route("/")
+def hello():
+    return jsonify({"message": "Test Server!"})
 
 
 # Поля курьера переводятся в json
