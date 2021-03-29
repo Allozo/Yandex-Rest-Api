@@ -3,7 +3,7 @@ import datetime
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from constants import courier_type_weight, cost_courier_type
+# from constants import courier_type_weight, cost_courier_type
 
 _is_Test = False
 
@@ -26,6 +26,19 @@ Base.metadata.create_all(bind=engine)
 '''
     Ниже будут методы необходимые для работы сервера
 '''
+
+
+courier_type_weight = {
+    "foot": 10,
+    "bike": 15,
+    "car": 50
+}
+
+cost_courier_type = {
+    "foot": 2,
+    "bike": 5,
+    "car": 9
+}
 
 
 @application.route("/")
