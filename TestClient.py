@@ -1,4 +1,4 @@
-from DeliveryServer import application
+from __init__ import application
 import json
 
 client = application.test_client()
